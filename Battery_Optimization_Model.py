@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------
+# Before running this script, please install the required packages:
+#   conda install -c conda-forge pandas numpy pyomo glpk -y
+# ----------------------------------------------------------------------
+
 import pandas as pd
 import numpy as np
 from pyomo.environ import *
