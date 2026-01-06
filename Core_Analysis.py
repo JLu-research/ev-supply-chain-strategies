@@ -1188,13 +1188,13 @@ df_final.loc[df_final['Material'] == 'SIB cell', 'Material'] = 'Na-ion cell'
 df_final.loc[df_final['Material'] == 'Silicon AAM', 'Material'] = 'Graphite-silicon AAM'
 df_final.loc[df_final['Material'] == 'LIB electrolyte', 'Material'] = 'Li-ion electrolyte'
 
-df_final.rename(columns={'US_mature': 'US (existing & mature)',
-                         'US_unmature': 'US (pre-mature)',
-                         'CaMex_mature': 'Canada & Mexico (existing & mature)',
-                         'CaMex_unmature': 'Canada & Mexico (pre-mature)',
-                         'FTA': 'FTA historical average',
-                         'FEOC': 'FEOC historical average',
-                         'nonFTA': 'non-FTA historical average',
+df_final.rename(columns={'US_mature': 'US (existing & advanced-stage projects)',
+                         'US_unmature': 'US (early-stage projects)',
+                         'CaMex_mature': 'Canada & Mexico (historical average & advanced-stage)',
+                         'CaMex_unmature': 'Canada & Mexico (early-stage)',
+                         'FTA': 'Other FTA countries (historical average)',
+                         'FEOC': 'FEOC countries (historical average)',
+                         'nonFTA': 'Other non-FTA countries (historical average)',
                          'US recycling': 'US recycling',
                          'Gap': 'Gap'}, inplace=True)
 print(df_final.round(0))
