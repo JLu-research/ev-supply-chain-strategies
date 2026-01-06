@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------
-# Before running this script, please install the required packages:
+# Before running this script, please install required packages:
 #   conda install -c conda-forge pandas numpy pyomo glpk -y
 # ----------------------------------------------------------------------
 
@@ -9,19 +9,25 @@ from pyomo.environ import *
 import re
 
 # Import input files
-material_share = pd.read_excel('data/material_share.xlsx')
-mineral = pd.read_excel('data/mineral.xlsx')
-component = pd.read_excel('data/component.xlsx')
-specific_energy = pd.read_excel('data/specific_energy.xlsx')
+material_share = pd.read_excel('data/optimization/material_share.xlsx')
+mineral = pd.read_excel('data/optimization/mineral.xlsx')
+component = pd.read_excel('data/optimization/component.xlsx')
+cell = pd.read_excel('data/optimization/cell.xlsx')
+specific_energy = pd.read_excel('data/optimization/specific_energy.xlsx')
+
+# User-defined scaling factor applied to battery weight
+wt_factor = 1
 
 # Define the range of years for the analysis
 years = list(range(2025, 2036))
+
+
 
 # Define battery chemistries and vehicle types
 ## Separate battery_type lists are used to group chemistries by the materials they use,
 ## making it easier to assign material-specific variables and constraints in the optimization model.
 
-battery_types= ['LFP', 'NCA', 'NMC111', 'NMC532', 'NMC622', 'NMC811','SIB',
+battery_types= ['LFP', 'NCA', 'NMC111', 'NMC532', 'NMC622', 'NMC811', 'SIB',
                 'LFP_siliconaam', 'NCA_siliconaam', 'NMC111_siliconaam', 'NMC532_siliconaam',
                 'NMC622_siliconaam', 'NMC811_siliconaam']
 
@@ -65,51 +71,102 @@ for year in years:
     model.sib_aam_eligible = Var(vehicle_types, battery_types_SIB, within=NonNegativeReals)
     model.electrolyte_eligible = Var(vehicle_types, battery_types, within=NonNegativeReals)
     model.separator_eligible = Var(vehicle_types, battery_types, within=NonNegativeReals)
-    model.battery_eligible_production = Var(vehicle_types, battery_types, within=NonNegativeReals)
+    model.battery_eligible_production = Var(vehicle_types, battery_types, within=NonNegativeReals) #ok
 
 
+    # Raw material requirement
+    for chem in battery_types:
+        for veh in vehicle_types:
+            model.add_component(f'{veh.lower()}_{chem.lower()}_bauxite_constraint',
+                                Constraint(expr=
+                                    model.bauxite_eligible[veh, chem] ==
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'bauxite', f'{veh}_{chem}'].values[0]))
 
-    # Precursor material requirement constraints
+            model.add_component(f'{veh.lower()}_{chem.lower()}_cobalt_constraint',
+                                Constraint(expr=
+                                    model.cobalt_eligible[veh, chem] ==
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'cobalt', f'{veh}_{chem}'].values[0]))
+
+            model.add_component(f'{veh.lower()}_{chem.lower()}_graphite_constraint',
+                                Constraint(expr=
+                                    model.graphite_eligible[veh, chem] ==
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'graphite', f'{veh}_{chem}'].values[0]))
+
+            model.add_component(f'{veh.lower()}_{chem.lower()}_lithium_constraint',
+                                Constraint(expr=
+                                    model.lithium_eligible[veh, chem] ==
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'lithium', f'{veh}_{chem}'].values[0]))
+
+            model.add_component(f'{veh.lower()}_{chem.lower()}_manganese_constraint',
+                                Constraint(expr=
+                                    model.manganese_eligible[veh, chem] ==
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'manganese', f'{veh}_{chem}'].values[0]))
+
+            model.add_component(f'{veh.lower()}_{chem.lower()}_nickel_constraint',
+                                Constraint(expr=
+                                    model.nickel_eligible[veh, chem] ==
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'nickel', f'{veh}_{chem}'].values[0]))
+
+    # Refined material requirement
     for chem in battery_types:
         for veh in vehicle_types:
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_aluminum_hydroxide_constraint',
                                 Constraint(expr=
                                     model.aluminum_hydroxide_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aluminum_hydroxide', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aluminum_hydroxide', f'{veh}_{chem}'].values[0]))
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_aluminum_sulfate_constraint',
                                 Constraint(expr=
                                     model.aluminum_sulfate_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aluminum_sulfate', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aluminum_sulfate', f'{veh}_{chem}'].values[0]))
 
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_cobalt_sulfate_constraint',
                                 Constraint(expr=
                                     model.cobalt_sulfate_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'cobalt_sulfate', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'cobalt_sulfate', f'{veh}_{chem}'].values[0]))
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_lithium_hydroxide_constraint',
                                 Constraint(expr=
                                     model.lithium_hydroxide_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'lithium_hydroxide', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'lithium_hydroxide', f'{veh}_{chem}'].values[0]))
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_lithium_carbonate_constraint',
                                 Constraint(expr=
                                     model.lithium_carbonate_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'lithium_carbonate', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'lithium_carbonate', f'{veh}_{chem}'].values[0]))
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_manganese_sulfate_constraint',
                                 Constraint(expr=
                                     model.manganese_sulfate_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'manganese_sulfate', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'manganese_sulfate', f'{veh}_{chem}'].values[0]))
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_nickel_sulfate_constraint',
                                 Constraint(expr=
                                     model.nickel_sulfate_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'nickel_sulfate', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'nickel_sulfate', f'{veh}_{chem}'].values[0]))
 
-    # Precursor material supply constraints
+    # Raw material supply constraints
+    model.add_component('bauxite_eligible_supply',
+                        Constraint(expr=sum(model.bauxite_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'bauxite_eligible'].values[0]))
+
+    model.add_component('cobalt_eligible_supply',
+                        Constraint(expr=sum(model.cobalt_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'cobalt_eligible'].values[0]))
+
+    model.add_component('graphite_eligible_supply',
+                        Constraint(expr=sum(model.graphite_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'graphite_eligible'].values[0]))
+
+    model.add_component('lithium_eligible_supply',
+                        Constraint(expr=sum(model.lithium_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'lithium_eligible'].values[0]))
+
+    model.add_component('manganese_eligible_supply',
+                        Constraint(expr=sum(model.manganese_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'manganese_eligible'].values[0]))
+
+    model.add_component('nickel_eligible_supply',
+                        Constraint(expr=sum(model.nickel_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'nickel_eligible'].values[0]))
+
+    # Refined material supply constraints
     model.add_component('aluminum_hydroxide_eligible_supply',
                         Constraint(expr=sum(model.aluminum_hydroxide_eligible[veh, chem] for veh in vehicle_types for chem in battery_types) <= mineral.loc[mineral['year'] == year, 'aluminum_hydroxide_eligible'].values[0]))
 
@@ -133,76 +190,76 @@ for year in years:
 
 
 
-    # Component requirement constraints
+    # Component requirements
     ## cathode active materials and separators
     for chem in battery_types:
         for veh in vehicle_types:
             model.add_component(f'{veh.lower()}_{chem.lower()}_cam_constraint',
                                 Constraint(expr=
                                     model.cam_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'cam', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'cam', f'{veh}_{chem}'].values[0]))
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_separator_constraint',
                                 Constraint(expr=
                                     model.separator_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'separator', f'{veh}_{chem}'].values[0]))
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'separator', f'{veh}_{chem}'].values[0]))
 
-    ## electrolytes
+    # electrolytes
     for chem in battery_types_LIB:
         for veh in vehicle_types:
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_electrolyte_constraint',
                                 Constraint(expr=
                                     model.electrolyte_eligible[veh, chem] ==
-                                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'electrolyte', f'{veh}_{chem}'].values[0]
+                                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'electrolyte', f'{veh}_{chem}'].values[0]
                                           )
                                )
 
-    ## graphite aam
+    # graphite aam
     for chem in battery_types_LIB_graphiteaam:
         for veh in vehicle_types:
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_graphite_aam_constraint',
                 Constraint(expr=
                     model.graphite_aam_eligible[veh, chem] ==
-                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aam', f'{veh}_{chem}'].values[0]
+                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aam', f'{veh}_{chem}'].values[0]
                           )
                 )
 
 
-    ## silicon aam
+    # graphite-silicon aam
     for chem in battery_types_LIB_siliconaam:
         for veh in vehicle_types:
 
             model.add_component(f'{veh.lower()}_{chem.lower()}_silicon_aam_constraint',
                 Constraint(expr=
                     model.silicon_aam_eligible[veh, chem] ==
-                    model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aam', f'{veh}_{chem}'].values[0]
+                    wt_factor * model.battery_eligible_production[veh, chem] * material_share.loc[material_share['material'] == 'aam', f'{veh}_{chem}'].values[0]
                           )
                 )
 
 
-    ## sodium-ion battery (SIB) anode active materials & SIB electrolytes
+    # sodium-ion battery (SIB) anode active materials & SIB electrolytes
     for veh in vehicle_types:
 
         model.add_component(f'{veh.lower()}_sib_aam_constraint',
                             Constraint(expr=
                                 model.sib_aam_eligible[veh, 'SIB']  ==
-                                model.battery_eligible_production[veh, 'SIB'] * material_share.loc[material_share['material'] == 'aam', f'{veh}_SIB'].values[0]))
+                                wt_factor * model.battery_eligible_production[veh, 'SIB'] * material_share.loc[material_share['material'] == 'aam', f'{veh}_SIB'].values[0]))
 
         model.add_component(f'{veh.lower()}_sib_electrolyte_constraint',
                             Constraint(expr=
                                 model.electrolyte_eligible[veh, 'SIB'] ==
-                                model.battery_eligible_production[veh, 'SIB'] * material_share.loc[material_share['material'] == 'electrolyte', f'{veh}_SIB'].values[0]))
+                                wt_factor * model.battery_eligible_production[veh, 'SIB'] * material_share.loc[material_share['material'] == 'electrolyte', f'{veh}_SIB'].values[0]))
 
 
     # Component supply constraints
     ## cathode active materials
-    for chem in battery_types_LIB_graphiteaam:
+    for chem in battery_types_LIB_graphiteaam: # battery_types_LIB_graphiteaam = ['LFP', 'NCA', 'NMC111', 'NMC532', 'NMC622', 'NMC811']
         model.add_component(
             f'{chem.lower()}_cam_eligible_supply',
             Constraint(
-                expr=sum(model.cam_eligible[veh, var] for veh in vehicle_types for var in [chem, f'{chem}_siliconaam']) <=
+                expr=sum(model.cam_eligible[veh, var] for veh in vehicle_types for var in [chem, f'{chem}_siliconaam']) <= # e.g., LFP + LFP_siliconaam
                      component.loc[component['year'] == year, f'{chem}_eligible'].values[0]
             )
         )
@@ -221,7 +278,7 @@ for year in years:
 
     model.silicon_aam_eligible_supply = Constraint(expr=
         sum(model.silicon_aam_eligible[veh, chem] for veh in vehicle_types for chem in battery_types_LIB_siliconaam)
-        == component.loc[component['year'] == year, 'silicon_aam_eligible'].values[0]
+        <= component.loc[component['year'] == year, 'silicon_aam_eligible'].values[0]
     )
 
     model.sib_aam_eligible_supply = Constraint(expr=
@@ -250,6 +307,25 @@ for year in years:
     )
 
 
+    # Cell supply constraints
+    for chem in ['LFP', 'NCA', 'NMC111', 'NMC532', 'NMC622', 'NMC811', 'SIB']:
+        model.add_component(
+            f'{chem}_cell_eligible_supply',
+            Constraint(
+                expr=
+                    sum(
+                        model.battery_eligible_production[veh, c]
+                        for veh in vehicle_types
+                        for c in (chem, f'{chem}_siliconaam')
+                        if c in battery_types
+                    )
+                <=
+                    cell.loc[cell['year'] == year].iloc[0].get(f'{chem}_cell_eligible', 0)
+                  + cell.loc[cell['year'] == year].iloc[0].get(f'{chem}_siliconaam_cell_eligible', 0)
+            )
+        )
+
+
     # Objective: Maximize eligible battery production
     model.objective = Objective(expr=
         sum(model.battery_eligible_production[veh, chem] for veh in vehicle_types for chem in battery_types),
@@ -266,7 +342,6 @@ for year in years:
         **{f'{veh}_{chem}_battery_production': model.battery_eligible_production[veh, chem].value for veh in vehicle_types for chem in battery_types}
     })
 
-# Combine annual results into a DataFrame
 results_df = pd.DataFrame(results)
 
 
